@@ -288,6 +288,101 @@ def scheduler_topology() -> dict[str, Any]:
     return svc.topological_order()
 
 
+@app.get("/api/analytics/scheduler/recompute")
+def scheduler_recompute(partition: str | None = None) -> dict[str, Any]:
+    """调度依赖复算：区分可执行计划与阻塞计划，并标出实际阻塞点。"""
+    svc = service_for("query_scheduler")
+    if svc is None:
+        return {"ok": False, "message": "调度服务未就绪"}
+    if partition:
+        return svc.recompute_plan_dependencies(partition)
+    return svc.recompute_plan_dependencies()
+
+
+@app.get("/api/analytics/scheduler/ready")
+def scheduler_ready() -> dict[str, Any]:
+    """当前真正可执行的计划（任务依赖与血缘输入均已满足）。"""
+    svc = service_for("query_scheduler")
+    if svc is None:
+        return {"ok": False, "message": "调度服务未就绪"}
+    return {"ok": True, "items": svc.get_ready_plans()}
+
+
+@app.get("/api/analytics/scheduler/blocked")
+def scheduler_blocked() -> dict[str, Any]:
+    """阻塞计划及阻塞原因（缺失上游、未完成前置、循环依赖等）。"""
+    svc = service_for("query_scheduler")
+    if svc is None:
+        return {"ok": False, "message": "调度服务未就绪"}
+    return {"ok": True, "items": svc.get_blocked_plans()}
+
+
+@app.get("/api/analytics/scheduler/ledger")
+def scheduler_ledger() -> dict[str, Any]:
+    """出数台账：真正产出的分区与出数时刻。"""
+    svc = service_for("query_scheduler")
+    if svc is None:
+        return {"ok": False, "message": "调度服务未就绪"}
+    return svc.execution_ledger()
+
+
+@app.get("/api/analytics/scheduler/plans/{entry_id}/detail")
+def scheduler_plan_detail(entry_id: int) -> dict[str, Any]:
+    """调度详情页：前置关系、依赖复算结论、阻塞点与最新产出。"""
+    svc = service_for("query_scheduler")
+    if svc is None:
+        return {"ok": False, "message": "调度服务未就绪"}
+    detail = svc.plan_detail(entry_id)
+    if detail is None:
+        return {"ok": False, "message": f"调度计划 {entry_id} 不存在"}
+    return detail
+
+
+@app.post("/api/analytics/scheduler/retry-failed")
+def scheduler_retry_failed() -> dict[str, Any]:
+    """失败重试：仍受同一道依赖守卫约束，不能绕过实际依赖。"""
+    svc = service_for("query_scheduler")
+    if svc is None:
+        return {"ok": False, "message": "调度服务未就绪"}
+    return svc.retry_failed()
+
+
+@app.get("/api/analytics/lineage/{node_id}/prerequisites")
+def lineage_prerequisites(node_id: str) -> dict[str, Any]:
+    """血缘详情页：按节点ID查看前置（上游）关系。"""
+    svc = service_for("data_lineage")
+    if svc is None:
+        return {"ok": False, "message": "血缘服务未就绪"}
+    row = svc._row_by_id(node_id)
+    if row is None:
+        return {"ok": False, "message": f"血缘节点 {node_id} 不存在", "prerequisites": []}
+    return svc.table_prerequisites(str(row.get("节点名称", "")))
+
+
+@app.get("/api/analytics/lineage/table/{table_name}/prerequisites")
+def lineage_table_prerequisites(table_name: str) -> dict[str, Any]:
+    """血缘详情页：按表名查看前置（上游）关系。"""
+    svc = service_for("data_lineage")
+    if svc is None:
+        return {"ok": False, "message": "血缘服务未就绪"}
+    return svc.table_prerequisites(table_name)
+
+
+@app.get("/api/analytics/lineage/recompute")
+def lineage_recompute(
+    targets: str = "",
+    partition: str | None = None,
+) -> dict[str, Any]:
+    """血缘依赖复算：核对目标表的必需输入分区是否到齐（逗号分隔多支链路）。"""
+    svc = service_for("data_lineage")
+    if svc is None:
+        return {"ok": False, "message": "血缘服务未就绪"}
+    target_list = [part.strip() for part in targets.split(",") if part.strip()]
+    if partition:
+        return svc.recompute_dependency_inputs(target_list, partition)
+    return svc.recompute_dependency_inputs(target_list)
+
+
 # ---- 辅助数据生成函数 ----
 def _sample_behavior_data() -> list[dict[str, Any]]:
     return [

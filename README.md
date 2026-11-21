@@ -77,5 +77,18 @@ npm run dev
 - 列表接口统一返回 `{ items, total, page, size }`，动作接口统一返回 `{ ok, message }`。
 - 状态流转只允许在 `app/services` 里改，路由层不做业务判断。
 
+## 调度依赖复算与血缘前置核对
+
+查询调度与数据血缘打通了「前置关系 → 输入可用性 → 可执行/阻塞判定」的闭环：
+
+- 后端
+  - `app/lineage_registry.py`：血缘输入可用性登记表，记录表分区与出数时刻；计划「完成调度」时回写产出。
+  - `DataLineageService.table_prerequisites / recompute_dependency_inputs`：血缘详情页前置关系、多支链路一次复算，未登记上游结构化返回而不是报错。
+  - `QuerySchedulerService.topological_order`：边方向修正为「前置 → 后继」，清洗先于汇总；循环依赖识别并排除。
+  - `QuerySchedulerService.recompute_plan_dependencies`：同时核对前置计划完成情况与血缘表必需输入，区分 `executable_plans` / `blocked_plans` 并给出阻塞点；开始执行与失败重试共用同一道依赖守卫。
+  - 接口：`/api/analytics/scheduler/{topology,recompute,ready,blocked,ledger,plans/{id}/detail,retry-failed}`、`/api/analytics/lineage/table/{table}/prerequisites`、`/api/analytics/lineage/recompute`。
+- 前端：`/query_scheduler` 为调度复算工作台（可执行/阻塞分区、拓扑次序、详情阻塞点、出数台账），`/data_lineage` 为血缘前置与复算页。
+- 回归：`backend/.venv/bin/python backend/tests/test_scheduler_recompute.py`。
+
 领域：数据工程
 子方向：数据分析与数据应用

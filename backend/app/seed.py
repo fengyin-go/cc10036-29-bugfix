@@ -364,6 +364,43 @@ SEED_ROWS: dict[str, list[dict[str, Any]]] = {
             "上游列表": "5,7", "下游列表": "",
             "数据量级": "1MB/月", "更新频率": "实时", "负责人": "管理组",
         },
+        # ---- 门店/渠道两支加工链路（依赖复算演示，节点99故意不登记，模拟缺失上游） ----
+        {
+            "id": 10, "status": "在线", "pending": False, "abnormal": False,
+            "节点名称": "ods_store_trade_daily", "节点类型": "table",
+            "上游列表": "", "下游列表": "11",
+            "数据量级": "20GB/月", "更新频率": "每日", "负责人": "数据平台组",
+        },
+        {
+            "id": 11, "status": "在线", "pending": False, "abnormal": False,
+            "节点名称": "dwd_store_clean", "节点类型": "table",
+            "上游列表": "10", "下游列表": "12",
+            "数据量级": "12GB/月", "更新频率": "每日", "负责人": "数据平台组",
+        },
+        {
+            "id": 12, "status": "在线", "pending": False, "abnormal": False,
+            "节点名称": "ads_store_daily_summary", "节点类型": "table",
+            "上游列表": "11", "下游列表": "",
+            "数据量级": "2GB/月", "更新频率": "每日", "负责人": "分析平台组",
+        },
+        {
+            "id": 13, "status": "在线", "pending": False, "abnormal": False,
+            "节点名称": "ods_channel_exposure_daily", "节点类型": "table",
+            "上游列表": "", "下游列表": "14",
+            "数据量级": "30GB/月", "更新频率": "每日", "负责人": "数据平台组",
+        },
+        {
+            "id": 14, "status": "在线", "pending": False, "abnormal": False,
+            "节点名称": "dwd_channel_order_clean", "节点类型": "table",
+            "上游列表": "13,99", "下游列表": "15",
+            "数据量级": "15GB/月", "更新频率": "每日", "负责人": "数据平台组",
+        },
+        {
+            "id": 15, "status": "在线", "pending": False, "abnormal": False,
+            "节点名称": "ads_channel_daily_summary", "节点类型": "table",
+            "上游列表": "14", "下游列表": "",
+            "数据量级": "3GB/月", "更新频率": "每日", "负责人": "分析平台组",
+        },
     ],
 
     # ---- 查询调度 ----
@@ -391,6 +428,56 @@ SEED_ROWS: dict[str, list[dict[str, Any]]] = {
             "计划名称": "周报汇总计算", "查询语句": "SELECT ... 复杂聚合",
             "执行周期": "每周一08:00", "依赖任务": "交易立方刷新,用户画像更新",
             "超时分钟": "90", "失败重试": "2", "优先级": "中",
+        },
+        # ---- 门店链路：清洗 -> 日汇总，复算时前置输入已齐，可按拓扑次序执行 ----
+        {
+            "id": 5, "status": "待调度", "pending": True, "abnormal": False,
+            "计划名称": "门店销售清洗",
+            "查询语句": "INSERT INTO dwd_store_clean SELECT ... FROM ods_store_trade_daily WHERE dt='2026-11-21'",
+            "执行周期": "每日03:00", "依赖任务": "",
+            "超时分钟": "60", "失败重试": "3", "优先级": "高",
+        },
+        {
+            "id": 6, "status": "待调度", "pending": True, "abnormal": False,
+            "计划名称": "门店日汇总",
+            "查询语句": "INSERT INTO ads_store_daily_summary SELECT ... FROM dwd_store_clean WHERE dt='2026-11-21'",
+            "执行周期": "每日04:00", "依赖任务": "门店销售清洗",
+            "超时分钟": "45", "失败重试": "3", "优先级": "高",
+        },
+        # ---- 渠道链路：上游节点99未登记，渠道清洗被实际阻塞，汇总随之阻塞 ----
+        {
+            "id": 7, "status": "待调度", "pending": True, "abnormal": False,
+            "计划名称": "渠道订单清洗",
+            "查询语句": "INSERT INTO dwd_channel_order_clean SELECT ... FROM ods_channel_exposure_daily, ads_channel_attribution WHERE dt='2026-11-21'",
+            "执行周期": "每日03:30", "依赖任务": "",
+            "超时分钟": "60", "失败重试": "3", "优先级": "高",
+        },
+        {
+            "id": 8, "status": "待调度", "pending": True, "abnormal": False,
+            "计划名称": "渠道日汇总",
+            "查询语句": "INSERT INTO ads_channel_daily_summary SELECT ... FROM dwd_channel_order_clean WHERE dt='2026-11-21'",
+            "执行周期": "每日04:30", "依赖任务": "渠道订单清洗",
+            "超时分钟": "45", "失败重试": "3", "优先级": "高",
+        },
+        # ---- 循环依赖样本：两计划互指，均禁止执行 ----
+        {
+            "id": 9, "status": "待调度", "pending": True, "abnormal": False,
+            "计划名称": "循环任务甲", "查询语句": "SELECT 1",
+            "执行周期": "每日05:00", "依赖任务": "循环任务乙",
+            "超时分钟": "30", "失败重试": "1", "优先级": "低",
+        },
+        {
+            "id": 10, "status": "待调度", "pending": True, "abnormal": False,
+            "计划名称": "循环任务乙", "查询语句": "SELECT 2",
+            "执行周期": "每日05:00", "依赖任务": "循环任务甲",
+            "超时分钟": "30", "失败重试": "1", "优先级": "低",
+        },
+        # ---- 未登记计划依赖样本：前置计划不存在，不得进入执行 ----
+        {
+            "id": 11, "status": "待调度", "pending": True, "abnormal": False,
+            "计划名称": "孤儿汇总任务", "查询语句": "SELECT 3",
+            "执行周期": "每日07:00", "依赖任务": "不存在的前置任务",
+            "超时分钟": "30", "失败重试": "1", "优先级": "中",
         },
     ],
 

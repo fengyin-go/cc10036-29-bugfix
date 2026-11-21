@@ -70,3 +70,37 @@ body { margin: 0; background: #f6f8fb; color: #1f2937; }
 .analysis-chart { display: flex; align-items: flex-end; gap: 8px; height: 160px; padding: 12px 0; }
 .analysis-bar { flex: 1; border-radius: 4px 4px 0 0; background: var(--brand); min-width: 24px; position: relative; transition: height 0.4s; }
 .analysis-bar span { position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); font-size: 10px; color: var(--muted); white-space: nowrap; }
+
+/* ---- 查询调度 / 血缘复算专用 ---- */
+.section-title { font-size: 15px; margin: 18px 0 8px; }
+.ready-text { color: #047857; }
+.blocked-text, .warn-text { color: #b42318; }
+.muted { color: var(--muted); font-size: 12px; }
+.action-text { color: #047857; font-size: 13px; }
+.topo-flow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+.topo-node { display: inline-block; padding: 6px 10px; border-radius: 6px; font-size: 12px; background: #eef2ff; border: 1px solid #c7d2fe; }
+.topo-node small { color: var(--muted); }
+.topo-level-0 { background: #ecfdf5; border-color: #a7f3d0; }
+.topo-level-1 { background: #eff6ff; border-color: #bfdbfe; }
+.topo-level-2 { background: #fff7ed; border-color: #fed7aa; }
+.topo-level-3 { background: #fef2f2; border-color: #fecaca; }
+.topo-arrow { color: var(--muted); }
+.plan-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.plan-column { min-width: 0; }
+.blocker-list { margin: 0; padding-left: 16px; }
+.blocker-list li { margin-bottom: 4px; font-size: 12px; }
+.blocker-kind { display: inline-block; background: #fee2e2; color: #b42318; border-radius: 4px; padding: 0 6px; margin-right: 4px; font-size: 11px; }
+.input-list { margin: 0; padding-left: 16px; font-size: 12px; }
+.badge { display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: 12px; }
+.badge-ready { background: #d1fae5; color: #047857; }
+.badge-blocked { background: #fee2e2; color: #b42318; }
+.row-ready { background: #f0fdf4; }
+.row-blocked { background: #fef2f2; }
+.stat-value.ready { color: #047857; }
+.stat-value.blocked { color: #b42318; }
+.lineage-card { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+.detail-list { margin: 0; }
+.detail-list dt { font-size: 12px; color: var(--muted); margin-top: 10px; }
+.detail-list dd { margin: 4px 0 0; font-size: 13px; }
+.detail-list code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; word-break: break-all; }
+.filter-item.grow { flex: 1; min-width: 260px; }
